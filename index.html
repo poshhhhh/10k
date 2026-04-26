@@ -21,6 +21,12 @@
             </div>
         </div>
 
+        <div class="mb-6">
+            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 ml-1">Current Holdings</h3>
+            <div id="holdingsList" class="space-y-2">
+                </div>
+        </div>
+
         <div id="summaryCards" class="grid grid-cols-2 gap-3 mb-6">
             </div>
 
@@ -67,7 +73,6 @@
     </div>
 
     <script>
-        // Load data from LocalStorage
         let portfolio = JSON.parse(localStorage.getItem('portfolio')) || {};
         let history = JSON.parse(localStorage.getItem('history')) || [];
 
@@ -77,29 +82,44 @@
             el.classList.toggle('flex', show);
         }
 
+        function deletePosition(ticker) {
+            if(confirm(`Delete all data for ${ticker}?`)) {
+                delete portfolio[ticker];
+                localStorage.setItem('portfolio', JSON.stringify(portfolio));
+                updateHistoryAndRender();
+            }
+        }
+
         function handleSave() {
             const ticker = document.getElementById('ticker').value.toUpperCase().trim();
             const shares = parseFloat(document.getElementById('shares').value);
             const cost = parseFloat(document.getElementById('cost').value);
             const marketValue = parseFloat(document.getElementById('marketValue').value);
-            const today = new Date().toLocaleDateString();
 
-            if (!ticker || isNaN(shares)) return alert("Please fill all fields");
+            if (!ticker || isNaN(shares) || isNaN(cost)) return alert("Please fill all fields");
 
-            // 1. Update the portfolio (Current holdings)
             portfolio[ticker] = { shares, cost, marketValue };
             localStorage.setItem('portfolio', JSON.stringify(portfolio));
+            
+            updateHistoryAndRender();
+            toggleModal(false);
+            // Reset fields
+            document.getElementById('ticker').value = '';
+            document.getElementById('shares').value = '';
+            document.getElementById('cost').value = '';
+            document.getElementById('marketValue').value = '';
+        }
 
-            // 2. Calculate current totals
+        function updateHistoryAndRender() {
+            const today = new Date().toLocaleDateString();
             let totalCost = 0;
             let totalValue = 0;
+
             Object.values(portfolio).forEach(s => {
                 totalCost += (s.cost * s.shares);
                 totalValue += (s.marketValue * s.shares);
             });
 
-            // 3. Update history for the line chart
-            // We find if today already has an entry, if so, update it.
             const historyIdx = history.findIndex(h => h.date === today);
             const entry = { date: today, totalCost, totalValue };
 
@@ -110,14 +130,56 @@
             }
 
             localStorage.setItem('history', JSON.stringify(history));
-            
-            toggleModal(false);
             renderAll();
         }
 
         function renderAll() {
             renderChart();
             renderSummary();
+            renderHoldings();
+        }
+
+        function renderHoldings() {
+            const list = document.getElementById('holdingsList');
+            const tickers = Object.keys(portfolio);
+            
+            if (tickers.length === 0) {
+                list.innerHTML = `<p class="text-sm text-slate-400 italic py-4 ml-1">No positions added yet.</p>`;
+                return;
+            }
+
+            list.innerHTML = tickers.map(ticker => {
+                const s = portfolio[ticker];
+                const profit = (s.marketValue - s.cost) * s.shares;
+                const isProfit = profit >= 0;
+                
+                return `
+                    <div class="bg-white p-4 rounded-2xl border border-slate-100 flex justify-between items-center group">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="font-bold text-slate-800">${ticker}</span>
+                                <span class="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded font-bold text-slate-500">${s.shares} SH</span>
+                            </div>
+                            <div class="text-[11px] text-slate-400 mt-1">
+                                Cost: $${s.cost.toFixed(2)} | Price: $${s.marketValue.toFixed(2)}
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <div class="text-right">
+                                <p class="text-sm font-bold ${isProfit ? 'text-emerald-500' : 'text-rose-500'}">
+                                    ${isProfit ? '+' : ''}$${profit.toFixed(2)}
+                                </p>
+                            </div>
+                            <button onclick="deletePosition('${ticker}')" class="text-slate-200 hover:text-rose-400 transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                  <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
+                                  <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
         }
 
         function renderSummary() {
@@ -128,17 +190,14 @@
                 totalValue += (s.marketValue * s.shares);
             });
 
-            const profit = totalValue - totalCost;
-            const percent = totalCost > 0 ? ((profit / totalCost) * 100).toFixed(1) : 0;
-
             document.getElementById('summaryCards').innerHTML = `
                 <div class="bg-white p-4 rounded-2xl border border-slate-100">
                     <p class="text-[10px] font-bold text-slate-400 uppercase">Total Cost</p>
-                    <p class="text-lg font-bold">$${totalCost.toLocaleString()}</p>
+                    <p class="text-lg font-bold text-slate-600">$${totalCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
                 </div>
                 <div class="bg-white p-4 rounded-2xl border border-slate-100">
                     <p class="text-[10px] font-bold text-slate-400 uppercase">Net Value</p>
-                    <p class="text-lg font-bold text-blue-600">$${totalValue.toLocaleString()}</p>
+                    <p class="text-lg font-bold text-blue-600">$${totalValue.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
                 </div>
             `;
         }
@@ -146,10 +205,7 @@
         let chartInstance = null;
         function renderChart() {
             const ctx = document.getElementById('performanceChart').getContext('2d');
-            
-            // Sort history by date
             const sortedHistory = [...history].sort((a,b) => new Date(a.date) - new Date(b.date));
-
             if (chartInstance) chartInstance.destroy();
 
             chartInstance = new Chart(ctx, {
@@ -164,7 +220,8 @@
                             backgroundColor: 'rgba(37, 99, 235, 0.1)',
                             fill: true,
                             tension: 0.4,
-                            pointRadius: 4
+                            pointRadius: 4,
+                            pointBackgroundColor: '#2563eb'
                         },
                         {
                             label: 'Total Cost',
@@ -182,17 +239,16 @@
                     maintainAspectRatio: false,
                     plugins: { legend: { display: false } },
                     scales: {
-                        x: { grid: { display: false } },
+                        x: { grid: { display: false }, ticks: { font: { size: 10 } } },
                         y: { 
                             beginAtZero: false,
-                            ticks: { callback: (val) => '$' + val.toLocaleString() }
+                            ticks: { font: { size: 10 }, callback: (val) => '$' + val.toLocaleString() }
                         }
                     }
                 }
             });
         }
 
-        // Initial Load
         window.onload = renderAll;
     </script>
 </body>
