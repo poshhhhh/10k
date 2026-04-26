@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Investment Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-50 text-gray-900 font-sans">
+
+    <div class="max-w-md mx-auto p-4 min-h-screen">
+        <header class="mb-6 py-4">
+            <h1 class="text-2xl font-bold text-blue-600">Portfolio Tracker</h1>
+            <p class="text-sm text-gray-500">Track market value vs. cost basis</p>
+        </header>
+
+        <div class="bg-white p-4 rounded-2xl shadow-sm mb-6">
+            <canvas id="investmentChart"></canvas>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4 mb-8">
+            <button onclick="openModal('add')" class="bg-blue-600 text-white py-3 px-4 rounded-xl font-semibold shadow-md active:scale-95 transition-transform">
+                + Add Share
+            </button>
+            <button onclick="openModal('update')" class="bg-emerald-600 text-white py-3 px-4 rounded-xl font-semibold shadow-md active:scale-95 transition-transform">
+                Update Data
+            </button>
+        </div>
+
+        <div id="positionList" class="space-y-3">
+            </div>
+    </div>
+
+    <div id="modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-2xl p-6">
+            <h2 id="modalTitle" class="text-xl font-bold mb-4">Add New Position</h2>
+            <div class="space-y-4">
+                <input type="text" id="symbol" placeholder="Stock Symbol (e.g. AAPL)" class="w-full p-3 border rounded-lg">
+                <input type="number" id="cost" placeholder="Total Cost" class="w-full p-3 border rounded-lg">
+                <input type="number" id="marketValue" placeholder="Current Market Value" class="w-full p-3 border rounded-lg">
+                <div class="flex gap-2">
+                    <button onclick="closeModal()" class="flex-1 py-3 border rounded-lg">Cancel</button>
+                    <button onclick="saveData()" class="flex-1 py-3 bg-blue-600 text-white rounded-lg">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
